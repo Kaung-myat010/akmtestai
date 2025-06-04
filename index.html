@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BudgetPOS">
+  <title>Medical Record App</title>
+   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+  <style>
+    :root {
+      --bg: #f0f4ff;
+      --text: #1f1f1f;
+      --card-bg: rgba(255, 255, 255, 0.8);
+      --glass: rgba(255, 255, 255, 0.4);
+    }
+    body.dark {
+      --bg: #1a1b2e;
+      --text: #f0f0f0;
+      --card-bg: rgba(30, 30, 48, 0.7);
+      --glass: rgba(30, 30, 48, 0.6);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: all 0.3s ease;
+    }
+    .navbar {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar h1 { font-size: 24px; }
+    .btn {
+      background: #5936f5;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: background 0.3s ease;
+    }
+    .btn:hover { background: #3f29b3; }
+    .container { padding: 20px; }
+
+    .add-btn-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .add-button {
+      position: relative;
+      background: #5936f5;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      cursor: pointer;
+      border: none;
+      font-size: 16px;
+      transition: all 0.4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .add-button.morph {
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      border-radius: 20px;
+      padding: 20px;
+      flex-direction: column;
+      background: var(--card-bg);
+      color: var(--text);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .add-button.morph h3 {
+      margin-bottom: 10px;
+    }
+    .add-button.morph input {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .add-button.morph .btn {
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .close {
+      position: absolute;
+      top: 10px; right: 15px;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #aaa;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+    .table-container {
+      overflow-x: auto;
+      background: var(--card-bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #5936f5;
+      color: #fff;
+    }
+    tr:hover { background: rgba(89, 54, 245, 0.1); }
+    .date-header {
+      background: #5936f5;
+      color: white;
+      font-weight: bold;
+      text-align: center;
+      font-size: 16px;
+      position: relative;
+    }
+    .date-delete-btn {
+      position: absolute;
+      right: 15px;
+      background: #e03e3e;
+      color: white;
+      border: none;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .date-delete-btn:hover {
+      background: #b82f2f;
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass);
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+      animation: fadeInOut 4s ease;
+      z-index: 999;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      10%, 90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    }
+
+    .dynamic-island {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass);
+      backdrop-filter: blur(15px);
+      padding: 20px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      z-index: 1001;
+      animation: fadeSlide 0.4s ease;
+    }
+    .hidden { display: none; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .dynamic-island input {
+      width: 100%;
+      margin: 6px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .btn-group {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    .delete-btn { background: #e03e3e; }
+    .delete-btn:hover { background: #b82f2f; }
+
+    /* Camera styles */
+    .camera-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 150px;
+      height: 200px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      background: var(--card-bg);
+    }
+    .camera-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .gesture-status {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      padding: 5px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .camera-toggle {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #5936f5;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <h1>Medical Record App</h1>
+    <div class="nav-buttons">
+      <button class="btn" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+      <button class="btn" onclick="exportCSV()"><i class="fas fa-file-export"></i> Export</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="add-btn-container">
+      <button id="addPatientBtn" class="add-button"><i class="fas fa-plus"></i> Add Patient</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by Name...">
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No.</th><th>Name</th><th>Age</th><th>Time</th><th>Date</th><th>Address</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="patientTableBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="notification" class="notification hidden">
+    <p id="notificationText"></p>
+  </div>
+
+  <div id="dynamicIsland" class="dynamic-island hidden">
+    <span class="close" onclick="closeDynamicIsland()">×</span>
+    <form id="editForm">
+      <h3>Edit Patient</h3>
+      <input type="text" id="editName" required>
+      <input type="number" id="editAge" min="0" required>
+      <input type="time" id="editTime" required>
+      <input type="date" id="editDate" required>
+      <input type="text" id="editAddress" required>
+      <div class="btn-group">
+        <button type="submit" class="btn">Update</button>
+        <button type="button" class="btn delete-btn" onclick="deleteFromIsland()">Delete</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="camera-container hidden" id="cameraContainer">
+    <div class="gesture-status" id="gestureStatus">Gesture: None</div>
+    <video id="cameraFeed" autoplay playsinline></video>
+    <button class="camera-toggle" id="toggleCameraBtn">Switch Camera</button>
+  </div>
+
+  <script>
+    let patients = JSON.parse(localStorage.getItem("patients")) || [];
+    const tableBody = document.getElementById("patientTableBody");
+    let editIndex = null;
+    const addBtn = document.getElementById("addPatientBtn");
+    
+    // Gesture detection variables
+    let detector = null;
+    let video = document.getElementById("cameraFeed");
+    let stream = null;
+    let currentFacingMode = "user"; // front camera by default
+    let isCameraActive = false;
+    let wasFistClosed = false;
+    let lastGestureTime = 0;
+    const gestureCooldown = 2000; // 2 seconds cooldown between gestures
+
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderGroupedTable();
+      // Ensure TensorFlow.js and hand-pose-detection are loaded before setting up
+      await tf.ready(); 
+      await setupGestureControl();
+      
+      // Add toggle button for camera
+      const toggleBtn = document.getElementById("toggleCameraBtn");
+      toggleBtn.addEventListener('click', toggleCamera);
+      
+      // Add button to show/hide camera
+      const cameraToggle = document.createElement('button');
+      cameraToggle.className = 'btn';
+      cameraToggle.innerHTML = '<i class="fas fa-camera"></i> Gesture Control';
+      cameraToggle.onclick = () => {
+        const cameraContainer = document.getElementById("cameraContainer");
+        if (cameraContainer.classList.contains("hidden")) {
+          startCamera();
+          cameraContainer.classList.remove("hidden");
+        } else {
+          stopCamera();
+          cameraContainer.classList.add("hidden");
+        }
+      };
+      document.querySelector('.nav-buttons').prepend(cameraToggle);
+
+      // Initialize dark mode if previously set
+      if (localStorage.getItem("mode") === "dark") {
+        document.body.classList.add("dark");
+      }
+    });
+
+    // Set up gesture control
+    async function setupGestureControl() {
+      try {
+        detector = await handPoseDetection.createDetector(
+          handPoseDetection.SupportedModels.MediaPipeHands,
+          {
+            runtime: 'tfjs',
+            modelType: 'full',
+            maxHands: 1
+          }
+        );
+        console.log("Hand detector loaded");
+      } catch (error) {
+        console.error("Error loading hand detector:", error);
+        showNotification("Error loading gesture control");
+      }
+    }
+
+    // Start camera
+    async function startCamera() {
+      if (isCameraActive) return;
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: currentFacingMode,
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        isCameraActive = true;
+        // Wait for video to load metadata before starting gesture detection
+        video.onloadedmetadata = () => {
+          detectGestures();
+        };
+      } catch (error) {
+        console.error("Error accessing camera:", error);
+        showNotification("Could not access camera");
+      }
+    }
+
+    // Stop camera
+    function stopCamera() {
+      if (!isCameraActive) return;
+      
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      isCameraActive = false;
+    }
+
+    // Toggle between front and back camera
+    async function toggleCamera() {
+      stopCamera();
+      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+      startCamera();
+    }
+
+    // Detect hand gestures
+    async function detectGestures() {
+      if (!isCameraActive || !detector || video.readyState !== 4) { // Ensure video is ready
+        requestAnimationFrame(detectGestures);
+        return;
+      }
+      
+      const hands = await detector.estimateHands(video);
+      const gestureStatus = document.getElementById("gestureStatus");
+      
+      if (hands.length > 0) {
+        const hand = hands[0];
+        const isFist = isHandClosed(hand.keypoints);
+        
+        if (isFist) {
+          gestureStatus.textContent = "Gesture: ✊ (Fist)";
+          wasFistClosed = true;
+        } else if (wasFistClosed) {
+          gestureStatus.textContent = "Gesture: ✋ (Open)";
+          wasFistClosed = false;
+          
+          // Check if enough time has passed since last gesture
+          const now = Date.now();
+          if (now - lastGestureTime > gestureCooldown) {
+            lastGestureTime = now;
+            triggerAddPatient();
+          }
+        } else {
+          gestureStatus.textContent = "Gesture: ✋ (Open)";
+        }
+      } else {
+        gestureStatus.textContent = "Gesture: None";
+        wasFistClosed = false;
+      }
+      
+      requestAnimationFrame(detectGestures);
+    }
+
+    // Check if hand is closed (fist)
+    function isHandClosed(keypoints) {
+      // These are the indices for finger tips and finger bases in the hand landmarks
+      const fingerTips = [4, 8, 12, 16, 20]; // thumb, index, middle, ring, pinky
+      const fingerBases = [2, 5, 9, 13, 17]; // bases of each finger
+      
+      let closedFingers = 0;
+      
+      // Check each finger (skip thumb for simplicity)
+      for (let i = 1; i < 5; i++) {
+        const tip = keypoints[fingerTips[i]];
+        const base = keypoints[fingerBases[i]];
+        
+        // If finger tip is close to its base (closed)
+        // Adjust the distance threshold based on your camera setup and desired sensitivity
+        if (tip && base && distance(tip, base) < 0.05 * video.videoWidth) { // Use video.videoWidth for scaling
+          closedFingers++;
+        }
+      }
+      
+      // Consider it a fist if at least 3 fingers are closed
+      return closedFingers >= 3;
+    }
+
+    // Calculate distance between two points
+    function distance(point1, point2) {
+      return Math.sqrt(
+        Math.pow(point1.x - point2.x, 2) + 
+        Math.pow(point1.y - point2.y, 2)
+      );
+    }
+
+    // Trigger the add patient button
+    function triggerAddPatient() {
+      showNotification("Gesture detected! Opening patient form...");
+      addBtn.click();
+    }
+
+    addBtn.addEventListener("click", (event) => {
+      // Prevent click from propagating to document and immediately closing the form
+      event.stopPropagation(); 
+      if (!addBtn.classList.contains("morph")) {
+        addBtn.classList.add("morph");
+        addBtn.innerHTML = `
+          <span class="close" id="closeFormBtn">×</span>
+          <h3>Add Patient</h3>
+          <input type="text" id="name" placeholder="Name" required>
+          <input type="number" id="age" placeholder="Age" min="0" required>
+          <input type="time" id="time" required>
+          <input type="date" id="date" required>
+          <input type="text" id="address" placeholder="Address" required>
+          <button class="btn" type="button" onclick="addPatient()">Submit</button>
+        `;
+        document.getElementById("closeFormBtn").addEventListener("click", (e) => {
+          e.stopPropagation(); // Prevent closing the form on click
+          closeForm();
+        });
+      }
+    });
+
+    function closeForm() {
+      addBtn.classList.remove("morph");
+      addBtn.innerHTML = `<i class="fas fa-plus"></i> Add Patient`;
+    }
+
+    function addPatient() {
+      const nameVal = document.getElementById("name").value.trim();
+      const ageVal = parseInt(document.getElementById("age").value);
+      const timeVal = document.getElementById("time").value;
+      const dateVal = document.getElementById("date").value;
+      const addressVal = document.getElementById("address").value.trim();
+
+      if (!nameVal || ageVal < 0 || isNaN(ageVal) || !timeVal || !dateVal || !addressVal) {
+        alert("Please fill all fields correctly.");
+        return;
+      }
+
+      const patient = { name: nameVal, age: ageVal, time: timeVal, date: dateVal, address: addressVal };
+      patients.push(patient);
+      localStorage.setItem("patients", JSON.stringify(patients));
+      renderGroupedTable();
+      closeForm();
+      showNotification("Patient added successfully!");
+    }
+
+    function renderGroupedTable(pList = patients) {
+      tableBody.innerHTML = "";
+      const grouped = {};
+      pList.forEach(p => {
+        if (!grouped[p.date]) grouped[p.date] = [];
+        grouped[p.date].push(p);
+      });
+
+      // Sort dates in ascending order
+      Object.keys(grouped).sort().forEach(date => {
+        const headerRow = document.createElement("tr");
+        headerRow.innerHTML = `
+          <td colspan="7" class="date-header">
+            Date: ${date}
+            <button class="date-delete-btn" onclick="deleteDateGroup('${date}')">Delete</button>
+          </td>
+        `;
+        tableBody.appendChild(headerRow);
+
+        grouped[date].forEach((p, index) => {
+          const row = document.createElement("tr");
+          // Find the original index of the patient to correctly update/delete from the `patients` array
+          const originalIndex = patients.findIndex(op => op.name === p.name && op.age === p.age && op.time === p.time && op.date === p.date && op.address === p.address);
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${p.name}</td>
+            <td>${p.age}</td>
+            <td>${p.time}</td>
+            <td>${p.date}</td>
+            <td>${p.address}</td>
+            <td><button class="btn" onclick="openEditIsland(${originalIndex})">Edit</button></td>`;
+          tableBody.appendChild(row);
+        });
+      });
+    }
+
+    function deleteDateGroup(date) {
+      if (confirm(`Are you sure you want to delete all patients from ${date}?`)) {
+        patients = patients.filter(p => p.date !== date);
+        localStorage.setItem("patients", JSON.stringify(patients));
+        renderGroupedTable();
+        showNotification(`All patients from ${date} deleted.`);
+      }
+    }
+
+    function openEditIsland(index) {
+      editIndex = index;
+      const p = patients[index];
+      document.getElementById("editName").value = p.name;
+      document.getElementById("editAge").value = p.age;
+      document.getElementById("editTime").value = p.time;
+      document.getElementById("editDate").value = p.date;
+      document.getElementById("editAddress").value = p.address;
+      document.getElementById("dynamicIsland").classList.remove("hidden");
+    }
+
+    document.getElementById("editForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const updated = {
+        name: editName.value.trim(),
+        age: parseInt(editAge.value),
+        time: editTime.value,
+        date: editDate.value,
+        address: editAddress.value.trim()
+      };
+      if (updated.age < 0 || isNaN(updated.age)) {
+        alert("Age cannot be negative or empty.");
+        return;
+      }
+      patients[editIndex] = updated;
+      localStorage.setItem("patients", JSON.stringify(patients));
+      renderGroupedTable();
+      closeDynamicIsland();
+      showNotification("Patient updated successfully!");
+    });
+
+    function deleteFromIsland() {
+      if (confirm("Delete this patient?")) {
+        patients.splice(editIndex, 1);
+        localStorage.setItem("patients", JSON.stringify(patients));
+        renderGroupedTable();
+        closeDynamicIsland();
+        showNotification("Patient deleted.");
+      }
+    }
+
+    function closeDynamicIsland() {
+      document.getElementById("dynamicIsland").classList.add("hidden");
+    }
+
+    document.getElementById("searchInput").addEventListener("input", function () {
+      const val = this.value.toLowerCase();
+      const filtered = patients.filter(p => p.name.toLowerCase().includes(val));
+      renderGroupedTable(filtered);
+    });
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+      localStorage.setItem("mode", document.body.classList.contains("dark") ? "dark" : "light");
+    }
+    // Dark mode initialization is now in DOMContentLoaded
+
+    function exportCSV() {
+      const csv = ["Name,Age,Time,Date,Address", ...patients.map(p =>
+        `${p.name},${p.age},${p.time},${p.date},${p.address}`
+      )].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "patients.csv";
+      a.click();
+    }
+
+    function showNotification(msg) {
+      const popup = document.getElementById("notification");
+      document.getElementById("notificationText").innerText = msg;
+      popup.classList.remove("hidden");
+      setTimeout(() => popup.classList.add("hidden"), 4000);
+    }
+
+    // Add event listener to close the form when clicking outside
+    document.addEventListener("click", function(event) {
+      const addButton = document.getElementById("addPatientBtn");
+      // Check if the add button is morphed (form is open)
+      if (addButton.classList.contains("morph")) {
+        const formInsideButton = addButton.querySelector('h3'); // Or any element specific to the form
+        if (formInsideButton && !addButton.contains(event.target)) {
+          closeForm();
+        }
+      }
+    });
+  </script>
+
+</body></html>

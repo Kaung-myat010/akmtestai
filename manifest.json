@@ -1,0 +1,19 @@
+{
+  "name": "AKM Test AI",
+  "short_name": "AKM Test AI",
+  "description": "Medical record",
+  "start_url": "/akmtestai/",
+  "display": "standalone",
+  "icons": [
+      {
+          "src": "/akmtestai/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+      },
+      {
+          "src": "/akmtestai/icons/icon-512x512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+      }
+  ]
+}
